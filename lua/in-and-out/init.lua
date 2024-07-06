@@ -18,10 +18,19 @@ local function escape_lua_pattern(s)
 	return (s:gsub(".", matches))
 end
 
+local function get_current_cursor(current_mode)
+  local current_row, current_col = unpack(vim.api.nvim_win_get_cursor(0))
+  if current_mode == "n" then
+    current_col = current_col + 1
+  end
+  return current_row, current_col
+end
+
 local targets = { '"', "'", "(", ")", "{", "}", "[", "]", "`" }
 
 function M.in_and_out()
-	local current_row, current_col = unpack(vim.api.nvim_win_get_cursor(0))
+  local current_mode = vim.api.nvim_get_mode().mode
+	local current_row, current_col = get_current_cursor(current_mode)
 	local line_count_in_buf = vim.api.nvim_buf_line_count(0)
 	local lines_in_buf = vim.api.nvim_buf_get_lines(0, current_row - 1, line_count_in_buf, false)
 
@@ -41,6 +50,9 @@ function M.in_and_out()
 		current_col = 0
 	end
 	if target_col then
+    if current_mode == "n" then
+      target_col = target_col - 1
+    end
 		vim.api.nvim_win_set_cursor(0, { target_row, target_col })
 	else
 		print("next rarget not found.")
