@@ -15,7 +15,7 @@ local function escape_lua_pattern(s)
 		["-"] = "%-",
 		["?"] = "%?",
 	}
-	return (s:gsub(".", matches))
+	return s:gsub(".", matches)
 end
 
 local function get_current_cursor(current_mode)
@@ -28,11 +28,27 @@ end
 
 local targets = { '"', "'", "(", ")", "{", "}", "[", "]", "`" }
 
+function M.setup(config)
+	vim.validate("config", config, "table", true)
+	vim.validate("config.targets", config.targets, "table", true)
+	vim.validate("config.additional_targets", config.additional_targets, "table", true)
+
+	if config and config.targets then
+		targets = config.targets
+		return
+	end
+
+	if config and config.additional_targets then
+		for _, target in ipairs(config.additional_targets) do
+			targets[#targets + 1] = target
+		end
+	end
+end
+
 function M.in_and_out()
   local current_mode = vim.api.nvim_get_mode().mode
 	local current_row, current_col = get_current_cursor(current_mode)
-	local line_count_in_buf = vim.api.nvim_buf_line_count(0)
-	local lines_in_buf = vim.api.nvim_buf_get_lines(0, current_row - 1, line_count_in_buf, false)
+	local lines_in_buf = vim.api.nvim_buf_get_lines(0, current_row - 1, -1, false)
 
 	local target_row = 0
 	local target_col = nil
@@ -40,7 +56,8 @@ function M.in_and_out()
 		for _, char in ipairs(targets) do
 			local found_col = string.find(line, escape_lua_pattern(char), current_col + 1)
 			if found_col and (not target_col or found_col < target_col) then
-				target_col = found_col
+				-- If char is a multibyte character, we need to take into account the extra bytes.
+				target_col = found_col + vim.fn.strlen(char) - 1
 			end
 		end
 		if target_col then
@@ -54,8 +71,6 @@ function M.in_and_out()
       target_col = target_col - 1
     end
 		vim.api.nvim_win_set_cursor(0, { target_row, target_col })
-	else
-		print("next rarget not found.")
 	end
 end
 
